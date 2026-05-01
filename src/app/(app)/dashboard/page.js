@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import StatusBadge from "@/components/StatusBadge";
 import AnimatedStat from "@/components/AnimatedStat";
 import ActivityList from "@/components/ActivityList";
+import Greeting from "@/components/Greeting";
 import { ArrowUpRight, AlertTriangle, CheckCircle2, Circle, Loader2, FolderKanban } from "lucide-react";
 
 export const metadata = { title: "Dashboard — Atelier" };
@@ -115,13 +116,10 @@ export default async function Dashboard() {
   const user = await getSessionUser();
   const { stats, myTasks, workspaceActivity } = await loadDashboard(user);
 
-  const greeting =
-    new Date().getHours() < 12 ? "Good morning" : new Date().getHours() < 18 ? "Good afternoon" : "Good evening";
-
   return (
     <div className="space-y-10 fade-in">
       <header>
-        <p className="text-muted text-xs uppercase tracking-widest mb-2">{greeting}</p>
+        <p className="text-muted text-xs uppercase tracking-widest mb-2"><Greeting /></p>
         <h1 className="serif text-4xl">Hello, {user.name.split(" ")[0]}.</h1>
         <p className="mt-2 text-ink-2">
           {user.role === "ADMIN" ? "Workspace overview." : "Here's what's on your plate."}
