@@ -39,28 +39,39 @@ FEATURES
      of tasks assigned to them
 
 3. Projects
-   - Create, view, update, delete (owner or admin)
-   - Add team members at creation or via edit
-   - Description, owner, member list, task count
+   - Create, edit (name, description, members), delete
+   - Add or remove team members at any time via edit modal
+   - Project cards show progress bar (% done) in solid ink
+   - Stacked colored avatar circles for members (initials, hashed color)
 
 4. Tasks
    - Title, description, status, priority (LOW/MEDIUM/HIGH), due date,
      assignee, project, creator
    - Kanban-style 3-column board on each project page
-   - Inline status changes from board or list view
-   - Overdue tasks highlighted in red
+   - **Drag-and-drop between columns** to change status (Owner/Admin/Assignee)
+   - Inline status select as fallback
+   - Overdue tasks highlighted
 
 5. Dashboard
-   - Greeting + 5 stat cards: Projects, To Do, In Progress, Done, Overdue
-   - "Tasks assigned to you" queue (top 6)
+   - Local-time greeting (renders from browser to respect user timezone)
+   - 5 stat cards with count-up animation on load
+   - "Tasks assigned to you" queue
+   - "Across the workspace" recent activity feed
 
 6. Tasks page
-   - Filter by status, search by title, "Show only mine" toggle
-   - Single inline status select for quick updates
+   - Filter by status (incl. Overdue), search by title, "Show only mine" toggle
 
 7. Admin page (ADMIN only)
    - List all users, change role (Member <-> Admin), delete users
    - Cannot demote or delete yourself
+
+8. UX polish
+   - Toast notifications on every create/update/delete
+   - Command palette (Ctrl+K / Cmd+K) — global quick-jump to projects, pages,
+     and actions; arrow-key navigation
+   - Activity timeline on each project (synthesized from task timestamps)
+   - Editorial theme: serif headings (Fraunces), warm paper background, single
+     muted forest-green accent
 
 
 TECH STACK
