@@ -2,7 +2,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Users as UsersIcon, X } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Users as UsersIcon, X, Pencil } from "lucide-react";
 import StatusBadge, { PriorityBadge } from "./StatusBadge";
 
 const COLUMNS = [
@@ -16,6 +16,7 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
   const [project, setProject] = useState(initial);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
+  const [showEditProject, setShowEditProject] = useState(false);
 
   const grouped = useMemo(() => {
     const g = { TODO: [], IN_PROGRESS: [], DONE: [] };
@@ -66,6 +67,21 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
     if (res.ok) await refresh();
   }
 
+  async function updateProject(payload) {
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error || "Failed to update project");
+    }
+    setShowEditProject(false);
+    await refresh();
+    router.refresh();
+  }
+
   async function deleteProject() {
     if (!confirm(`Delete project "${project.name}"? This will remove all its tasks.`)) return;
     const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
@@ -96,9 +112,14 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
             <Plus className="w-4 h-4" /> New task
           </button>
           {isOwnerOrAdmin && (
-            <button onClick={deleteProject} className="btn btn-danger">
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <>
+              <button onClick={() => setShowEditProject(true)} className="btn">
+                <Pencil className="w-4 h-4" /> Edit
+              </button>
+              <button onClick={deleteProject} className="btn btn-danger" title="Delete project">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -146,6 +167,15 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
           members={memberOptions}
           onClose={() => setShowTaskModal(false)}
           onSave={createTask}
+        />
+      )}
+      {showEditProject && (
+        <EditProjectModal
+          project={project}
+          allUsers={allUsers}
+          currentUser={currentUser}
+          onClose={() => setShowEditProject(false)}
+          onSave={updateProject}
         />
       )}
       {editingTask && (
@@ -311,6 +341,96 @@ function TaskModal({ task, members, onClose, onSave }) {
             <button type="button" onClick={onClose} className="btn">Cancel</button>
             <button type="submit" className="btn btn-accent" disabled={loading}>
               {loading ? "Saving…" : task ? "Save changes" : "Create task"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditProjectModal({ project, allUsers, currentUser, onClose, onSave }) {
+  const [name, setName] = useState(project.name);
+  const [description, setDescription] = useState(project.description || "");
+  const initialMemberIds = project.members.map((m) => m.userId);
+  const [memberIds, setMemberIds] = useState(initialMemberIds);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  function toggle(id) {
+    setMemberIds((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]));
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await onSave({ name, description, memberIds });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const selectableUsers = allUsers.filter((u) => u.id !== project.ownerId);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-ink/30 flex items-center justify-center p-4 fade-in" onClick={onClose}>
+      <div className="card w-full max-w-lg p-7" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <p className="text-muted text-xs uppercase tracking-widest">Edit</p>
+            <h2 className="serif text-2xl">Edit project</h2>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost p-1"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <label className="label">Name</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
+          </div>
+          <div>
+            <label className="label">Description</label>
+            <textarea
+              className="textarea"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="label">Members</label>
+            <p className="text-xs text-muted mb-2">
+              Owner ({project.owner.name}) is always a member.
+            </p>
+            <div className="card-soft p-2 max-h-56 overflow-y-auto">
+              {selectableUsers.length === 0 ? (
+                <p className="text-xs text-muted p-3">No other users to add yet.</p>
+              ) : (
+                selectableUsers.map((u) => (
+                  <label key={u.id} className="flex items-center gap-3 p-2 rounded hover:bg-white cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={memberIds.includes(u.id)}
+                      onChange={() => toggle(u.id)}
+                      className="accent-ink"
+                    />
+                    <div className="text-sm flex-1">
+                      <p className="font-medium">{u.name} {u.id === currentUser.id && <span className="text-xs text-muted">(you)</span>}</p>
+                      <p className="text-xs text-muted">{u.email}</p>
+                    </div>
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+          {error && <p className="text-sm text-rose">{error}</p>}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className="btn">Cancel</button>
+            <button type="submit" className="btn btn-accent" disabled={loading}>
+              {loading ? "Saving…" : "Save changes"}
             </button>
           </div>
         </form>
