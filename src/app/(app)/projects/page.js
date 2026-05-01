@@ -18,12 +18,20 @@ export default async function ProjectsPage() {
       include: {
         owner: { select: { id: true, name: true, email: true } },
         members: { include: { user: { select: { id: true, name: true, email: true } } } },
-        _count: { select: { tasks: true } },
+        tasks: { select: { status: true } },
       },
       orderBy: { createdAt: "desc" },
     }),
     prisma.user.findMany({ select: { id: true, name: true, email: true } }),
   ]);
 
-  return <ProjectsClient initialProjects={projects} users={users} currentUser={user} />;
+  const enriched = projects.map((p) => {
+    const total = p.tasks.length;
+    const done = p.tasks.filter((t) => t.status === "DONE").length;
+    const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+    const { tasks, ...rest } = p;
+    return { ...rest, _count: { tasks: total }, _doneCount: done, _percent: percent };
+  });
+
+  return <ProjectsClient initialProjects={JSON.parse(JSON.stringify(enriched))} users={users} currentUser={user} />;
 }

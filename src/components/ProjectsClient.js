@@ -3,9 +3,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, FolderKanban, Users as UsersIcon, ListChecks, X } from "lucide-react";
+import { useToast } from "./Toaster";
+import AvatarStack from "./AvatarStack";
 
 export default function ProjectsClient({ initialProjects, users, currentUser }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [projects, setProjects] = useState(initialProjects);
   const [showModal, setShowModal] = useState(false);
 
@@ -22,6 +25,7 @@ export default function ProjectsClient({ initialProjects, users, currentUser }) 
     const { project } = await res.json();
     setProjects([{ ...project, _count: { tasks: 0 } }, ...projects]);
     setShowModal(false);
+    toast("success", "Project created", `“${project.name}” is ready.`);
     router.refresh();
   }
 
@@ -51,26 +55,46 @@ export default function ProjectsClient({ initialProjects, users, currentUser }) 
         </div>
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {projects.map((p) => (
-            <Link key={p.id} href={`/projects/${p.id}`} className="card p-6 hover:bg-paper-2 transition-colors">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-muted text-xs uppercase tracking-widest">Project</span>
-                <span className="text-xs text-muted">
-                  {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </span>
-              </div>
-              <h2 className="serif text-2xl mb-2">{p.name}</h2>
-              <p className="text-sm text-ink-2 line-clamp-2 min-h-[2.5rem]">{p.description || "No description."}</p>
-              <div className="mt-5 flex items-center gap-4 text-xs text-muted">
-                <span className="flex items-center gap-1.5">
-                  <ListChecks className="w-3.5 h-3.5" /> {p._count?.tasks ?? 0} tasks
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <UsersIcon className="w-3.5 h-3.5" /> {(p.members?.length ?? 0) + 1} members
-                </span>
-              </div>
-            </Link>
-          ))}
+          {projects.map((p) => {
+            const total = p._count?.tasks ?? 0;
+            const percent = p._percent ?? 0;
+            const memberList = [{ id: p.owner.id, name: p.owner.name }, ...(p.members ?? []).map((m) => ({ id: m.user.id, name: m.user.name }))];
+            return (
+              <Link key={p.id} href={`/projects/${p.id}`} className="card p-6 hover:bg-paper-2 transition-colors flex flex-col">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-muted text-xs uppercase tracking-widest">Project</span>
+                  <span className="text-xs text-muted">
+                    {new Date(p.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+                <h2 className="serif text-2xl mb-2">{p.name}</h2>
+                <p className="text-sm text-ink-2 line-clamp-2 min-h-[2.5rem]">{p.description || "No description."}</p>
+
+                <div className="mt-5">
+                  <div className="flex items-center justify-between text-xs text-muted mb-1.5">
+                    <span>{total === 0 ? "No tasks yet" : `${p._doneCount ?? 0} of ${total} done`}</span>
+                    <span className="tabular-nums font-medium text-ink-2">{percent}%</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-paper-2 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${percent}%`,
+                        background: percent >= 75 ? "var(--color-accent)" : percent >= 40 ? "var(--color-amber)" : "var(--color-muted)",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between text-xs text-muted">
+                  <AvatarStack people={memberList} />
+                  <span className="flex items-center gap-1.5">
+                    <ListChecks className="w-3.5 h-3.5" /> {total} {total === 1 ? "task" : "tasks"}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       )}
 

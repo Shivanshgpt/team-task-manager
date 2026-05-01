@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash2, Users as UsersIcon, X, Pencil } from "lucide-react";
 import StatusBadge, { PriorityBadge } from "./StatusBadge";
+import { useToast } from "./Toaster";
 
 const COLUMNS = [
   { key: "TODO", label: "To do" },
@@ -13,6 +14,7 @@ const COLUMNS = [
 
 export default function ProjectDetailClient({ project: initial, allUsers, currentUser, isOwnerOrAdmin }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [project, setProject] = useState(initial);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -48,6 +50,7 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
       throw new Error(e.error || "Failed to create task");
     }
     setShowTaskModal(false);
+    toast("success", "Task created", payload.title);
     await refresh();
     router.refresh();
   }
@@ -58,13 +61,22 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
       headers: { "content-type": "application/json" },
       body: JSON.stringify(patch),
     });
-    if (res.ok) await refresh();
+    if (res.ok) {
+      await refresh();
+      if (patch.status) toast("success", "Status updated", patch.status.replace("_", " ").toLowerCase());
+    } else {
+      const e = await res.json();
+      toast("error", "Could not update", e.error || "Try again");
+    }
   }
 
   async function deleteTask(id) {
     if (!confirm("Delete this task?")) return;
     const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-    if (res.ok) await refresh();
+    if (res.ok) {
+      toast("info", "Task deleted");
+      await refresh();
+    }
   }
 
   async function updateProject(payload) {
@@ -78,6 +90,7 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
       throw new Error(e.error || "Failed to update project");
     }
     setShowEditProject(false);
+    toast("success", "Project updated");
     await refresh();
     router.refresh();
   }
@@ -85,7 +98,10 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
   async function deleteProject() {
     if (!confirm(`Delete project "${project.name}"? This will remove all its tasks.`)) return;
     const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
-    if (res.ok) router.push("/projects");
+    if (res.ok) {
+      toast("info", "Project deleted");
+      router.push("/projects");
+    }
   }
 
   const teamCount = project.members.length + 1;

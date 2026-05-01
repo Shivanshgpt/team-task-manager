@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { headers } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import StatusBadge from "@/components/StatusBadge";
+import AnimatedStat from "@/components/AnimatedStat";
 import { ArrowUpRight, AlertTriangle, CheckCircle2, Circle, Loader2, FolderKanban } from "lucide-react";
 
 export const metadata = { title: "Dashboard — Atelier" };
@@ -57,7 +57,9 @@ function StatBlock({ label, value, accent, icon: Icon }) {
         <p className="text-muted text-xs uppercase tracking-widest">{label}</p>
         {Icon && <Icon className={`w-4 h-4 text-${accent || "muted"}`} />}
       </div>
-      <p className="serif text-4xl tabular-nums">{value}</p>
+      <p className={`serif text-4xl tabular-nums ${accent ? `text-${accent}` : ""}`}>
+        <AnimatedStat value={value} />
+      </p>
     </div>
   );
 }
