@@ -5,12 +5,12 @@ A full-stack web application for collaborative project & task management
 
 LIVE URL
 --------
-(Will be filled in after Railway deployment, e.g. https://atelier.up.railway.app)
+https://team-task-manager-production-3cdd.up.railway.app
 
 
 GITHUB REPOSITORY
 -----------------
-(Will be filled in after pushing to GitHub)
+https://github.com/Shivanshgpt/team-task-manager
 
 
 OVERVIEW
