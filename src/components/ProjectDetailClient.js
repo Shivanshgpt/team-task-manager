@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash2, Users as UsersIcon, X, Pencil } from "lucide-react";
 import StatusBadge, { PriorityBadge } from "./StatusBadge";
 import { useToast } from "./Toaster";
+import ActivityList, { buildProjectActivity } from "./ActivityList";
 
 const COLUMNS = [
   { key: "TODO", label: "To do" },
@@ -19,6 +20,8 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [showEditProject, setShowEditProject] = useState(false);
+  const [dragOverCol, setDragOverCol] = useState(null);
+  const [draggingId, setDraggingId] = useState(null);
 
   const grouped = useMemo(() => {
     const g = { TODO: [], IN_PROGRESS: [], DONE: [] };
@@ -104,6 +107,30 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
     }
   }
 
+  function canMoveTask(task) {
+    return isOwnerOrAdmin || task.assigneeId === currentUser.id;
+  }
+
+  function onDropColumn(targetStatus) {
+    setDragOverCol(null);
+    const id = draggingId;
+    setDraggingId(null);
+    if (!id) return;
+    const task = project.tasks.find((t) => t.id === id);
+    if (!task || task.status === targetStatus) return;
+    if (!canMoveTask(task)) {
+      toast("error", "Not allowed", "You can only move tasks assigned to you.");
+      return;
+    }
+    setProject((p) => ({
+      ...p,
+      tasks: p.tasks.map((t) => (t.id === id ? { ...t, status: targetStatus } : t)),
+    }));
+    updateTask(id, { status: targetStatus });
+  }
+
+  const activity = useMemo(() => buildProjectActivity(project), [project]);
+
   const teamCount = project.members.length + 1;
 
   return (
@@ -142,14 +169,20 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
 
       <section className="grid md:grid-cols-3 gap-5">
         {COLUMNS.map((col) => (
-          <div key={col.key} className="card-soft p-4">
+          <div
+            key={col.key}
+            onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.key); }}
+            onDragLeave={() => setDragOverCol((c) => (c === col.key ? null : c))}
+            onDrop={(e) => { e.preventDefault(); onDropColumn(col.key); }}
+            className={`card-soft p-4 transition-all ${dragOverCol === col.key ? "ring-2 ring-ink/20 bg-accent-soft/40" : ""}`}
+          >
             <div className="flex items-center justify-between mb-3 px-1">
               <h3 className="text-sm font-medium uppercase tracking-widest text-ink-2">{col.label}</h3>
               <span className="text-xs text-muted">{grouped[col.key].length}</span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 min-h-[80px]">
               {grouped[col.key].length === 0 && (
-                <p className="text-xs text-muted italic px-2 py-3">Nothing here yet.</p>
+                <p className="text-xs text-muted italic px-2 py-3">Drop a task here, or nothing yet.</p>
               )}
               {grouped[col.key].map((t) => (
                 <TaskCard
@@ -158,6 +191,10 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
                   members={memberOptions}
                   currentUser={currentUser}
                   isOwnerOrAdmin={isOwnerOrAdmin}
+                  draggable={canMoveTask(t)}
+                  isDragging={draggingId === t.id}
+                  onDragStart={() => setDraggingId(t.id)}
+                  onDragEnd={() => { setDraggingId(null); setDragOverCol(null); }}
                   onUpdate={(patch) => updateTask(t.id, patch)}
                   onDelete={() => deleteTask(t.id)}
                   onEdit={() => setEditingTask(t)}
@@ -168,13 +205,19 @@ export default function ProjectDetailClient({ project: initial, allUsers, curren
         ))}
       </section>
 
-      <section>
-        <h3 className="serif text-xl mb-3">Team</h3>
-        <div className="card divide-y">
-          <MemberRow user={project.owner} role="Owner" />
-          {project.members.map((m) => (
-            <MemberRow key={m.userId} user={m.user} role="Member" />
-          ))}
+      <section className="grid md:grid-cols-2 gap-6">
+        <div>
+          <h3 className="serif text-xl mb-3">Recent activity</h3>
+          <ActivityList items={activity} />
+        </div>
+        <div>
+          <h3 className="serif text-xl mb-3">Team</h3>
+          <div className="card divide-y">
+            <MemberRow user={project.owner} role="Owner" />
+            {project.members.map((m) => (
+              <MemberRow key={m.userId} user={m.user} role="Member" />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -221,13 +264,18 @@ function MemberRow({ user, role }) {
   );
 }
 
-function TaskCard({ task, members, currentUser, isOwnerOrAdmin, onUpdate, onDelete, onEdit }) {
+function TaskCard({ task, members, currentUser, isOwnerOrAdmin, onUpdate, onDelete, onEdit, draggable, isDragging, onDragStart, onDragEnd }) {
   const overdue = task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "DONE";
   const canEditFully = isOwnerOrAdmin;
   const canChangeStatus = canEditFully || task.assigneeId === currentUser.id;
 
   return (
-    <div className="bg-paper rounded-lg border p-3 group">
+    <div
+      draggable={draggable}
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart && onDragStart(); }}
+      onDragEnd={onDragEnd}
+      className={`bg-paper rounded-lg border p-3 group transition-all ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${isDragging ? "opacity-40 rotate-1" : ""}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <button onClick={canEditFully ? onEdit : undefined} className={`text-left flex-1 ${canEditFully ? "hover:underline" : ""}`}>
           <p className="font-medium text-sm leading-snug">{task.title}</p>
@@ -454,3 +502,4 @@ function EditProjectModal({ project, allUsers, currentUser, onClose, onSave }) {
     </div>
   );
 }
+

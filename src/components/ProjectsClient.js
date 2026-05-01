@@ -77,11 +77,8 @@ export default function ProjectsClient({ initialProjects, users, currentUser }) 
                   </div>
                   <div className="h-1.5 rounded-full bg-paper-2 overflow-hidden">
                     <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        width: `${percent}%`,
-                        background: percent >= 75 ? "var(--color-accent)" : percent >= 40 ? "var(--color-amber)" : "var(--color-muted)",
-                      }}
+                      className="h-full rounded-full bg-ink transition-all duration-700"
+                      style={{ width: `${percent}%` }}
                     />
                   </div>
                 </div>
