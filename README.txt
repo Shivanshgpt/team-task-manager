@@ -5,7 +5,7 @@ A full-stack web application for collaborative project & task management
 
 LIVE URL
 --------
-https://team-task-manager-production-3cdd.up.railway.app
+https://team-task-manager-production-3cb8.up.railway.app
 
 
 GITHUB REPOSITORY
